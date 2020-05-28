@@ -1,4 +1,3 @@
-
 #include <sys/fcntl.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -73,7 +72,6 @@ int main()
 }
 
 void serv(int sockfd)
-
 {
   int len;
   FILE *filep;
@@ -84,7 +82,7 @@ void serv(int sockfd)
   char http_ver[64];
   char *file_name;
 
-  if (read(sockfd, recv_buf, 1024) <= 0)
+  if (recv(sockfd, recv_buf, 1024, 0) <= 0)
   {
     perror("Failed to read a request ");
     send_error_msg(sockfd, 500);
@@ -124,7 +122,7 @@ void serv(int sockfd)
 
 int send_msg(int fd, char *msg, int len)
 {
-  if (write(fd, msg, len) != len)
+  if (send(fd, msg, len, 0) != len)
   {
     perror("Failed to send message");
   }
