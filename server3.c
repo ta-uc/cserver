@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <signal.h>
 
-#define _XOPEN_SOURCE
+#define _GNU_SOURCE
 
 #define HTTP_TCP_PORT 8080
 
@@ -38,12 +38,12 @@ int main()
   sigaction(SIGINT, &handleSetInterrupt, 0);
 
   int sockfd, newSockfd;
-  int writerLen;
-  struct sockaddr_in readerAddr, writerAddr;
-  bzero((char *)&readerAddr, sizeof(readerAddr));
-  readerAddr.sin_family = AF_INET;
-  readerAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-  readerAddr.sin_port = htons(HTTP_TCP_PORT);
+  int clientAddrLen;
+  struct sockaddr_in serverAddr, clientAddr;
+  bzero((char *)&serverAddr, sizeof(serverAddr));
+  serverAddr.sin_family = AF_INET;
+  serverAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+  serverAddr.sin_port = htons(HTTP_TCP_PORT);
 
   if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
   {
@@ -54,7 +54,7 @@ int main()
   if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &true, sizeof(true)) < 0)
     perror("Failed to setsockopt");
 
-  if (bind(sockfd, (struct sockaddr *)&readerAddr, sizeof(readerAddr)) < 0)
+  if (bind(sockfd, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0)
   {
     perror("Failed to bind connection ");
     close(sockfd);
@@ -72,7 +72,7 @@ int main()
 
   while (1)
   {
-    if ((newSockfd = accept(sockfd, (struct sockaddr *)&writerAddr, &writerLen)) < 0)
+    if ((newSockfd = accept(sockfd, (struct sockaddr *)&clientAddr, &clientAddrLen)) < 0)
     {
       perror("Failed to accept socket connection ");
       break;
