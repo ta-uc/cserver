@@ -28,6 +28,9 @@ int sendHeader(int fd, int status_code);
 
 int main()
 {
+  const int true = 1;
+  const int false = 0;
+
   struct sigaction handleSetInterrupt;
   handleSetInterrupt.sa_handler = signalHandlerInterrpt;
   if(sigfillset(&handleSetInterrupt.sa_mask) < 0)
@@ -47,6 +50,9 @@ int main()
     perror("Failed to create socket ");
     exit(1);
   }
+
+  if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &true, sizeof(true)) < 0)
+    perror("Failed to setsockopt");
 
   if (bind(sockfd, (struct sockaddr *)&readerAddr, sizeof(readerAddr)) < 0)
   {
