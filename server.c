@@ -1,7 +1,9 @@
 #include <sys/fcntl.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <netinet/in.h>
+#include <unistd.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <string.h>
@@ -21,6 +23,7 @@
 #define RSP_HDR_500 "HTTP/1.1 500 Internal Server Error\r\ntext/html\r\n\r\n"
 
 void signalHandlerInterrpt(int signal);
+int isDir(const char *path);
 void serv(int sockfd);
 int sendMsg(int fd, char *msg, int len);
 int sendErrMsg(int fd, int status_code);
@@ -93,10 +96,10 @@ void serv(int sockfd)
   FILE *fileP;
   char recvBuf[1024];
   char sendBuf[1024];
-  char methodName[10];
+  char method[10];
   char path[256];
   char httpVer[64];
-  char *fileName;
+  char *filename;
 
   if (recv(sockfd, recvBuf, 1024, 0) <= 0)
   {
@@ -105,23 +108,32 @@ void serv(int sockfd)
   }
   else
   {
-    sscanf(recvBuf, "%s %s %s", methodName, path, httpVer);
-    if (strcmp(methodName, "GET") != 0)
+    sscanf(recvBuf, "%s %s %s", method, path, httpVer);
+    if (strcmp(method, "GET") != 0)
     {
       sendErrMsg(sockfd, 405);
     }
     else
     {
+      printf("path : %s\n",path);
       if (strcmp(path, "/") == 0)
       {
-        fileName = "index.html";
+        filename = "index.html";
       }
       else
       {
-        fileName = path + 1;
+        if (isDir(&path[1]))
+        {
+          char *concatePath = strcat(path,"/index.html");
+          filename = &concatePath[1];
+        }
+        else
+        {
+          filename = &path[1];
+        }
       }
 
-      if ((fileP = fopen(fileName, "r")) == NULL)
+      if ((fileP = fopen(filename, "r")) == NULL)
       {
         sendErrMsg(sockfd, 404);
       }
@@ -134,6 +146,14 @@ void serv(int sockfd)
       }
     }
   }
+}
+
+int isDir(const char *path)
+{
+    struct stat statBuf;
+    if (stat(path, &statBuf) != 0)
+       return 0;
+    return S_ISDIR(statBuf.st_mode);
 }
 
 int sendMsg(int fd, char *msg, int len)
