@@ -27,7 +27,7 @@ int isDir(const char *path);
 void serv(int sockfd);
 int sendMsg(int fd, char *msg, int len);
 int sendErrMsg(int fd, int status_code);
-int sendHeader(int fd, int status_code);
+int setMsgHeader(char *msgHeader, int status_code);
 
 int main()
 {
@@ -92,14 +92,17 @@ int main()
 
 void serv(int sockfd)
 {
-  int msgLen;
+  int msgBodyLen;
+  int msgHeaderLen;
   FILE *fileP;
+  char *filename;
   char recvBuf[1024];
-  char sendBuf[1024];
+  char sendBuf[1050000];
   char method[10];
   char path[256];
   char httpVer[64];
-  char *filename;
+  char msgHeader[50];
+  char msgBody[1045000];
 
   if (recv(sockfd, recvBuf, 1024, 0) <= 0)
   {
@@ -139,9 +142,11 @@ void serv(int sockfd)
       }
       else
       {
-        sendHeader(sockfd, 200);
-        msgLen = fread(sendBuf, 1, 1024, fileP);
-        sendMsg(sockfd, sendBuf, msgLen);
+        msgHeaderLen = setMsgHeader(msgHeader, 200);
+        msgBodyLen = fread(msgBody, 1, 1024*1024*5, fileP);
+        memcpy(sendBuf,msgHeader,msgHeaderLen);
+        memcpy(sendBuf+msgHeaderLen, msgBody, msgBodyLen);
+        sendMsg(sockfd, sendBuf, msgHeaderLen+msgBodyLen);
         fclose(fileP);
       }
     }
@@ -165,21 +170,25 @@ int sendMsg(int fd, char *msg, int len)
   return len;
 }
 
-int sendHeader(int fd, int status_code)
+int setMsgHeader(char *msgHeader, int status_code)
 {
   switch (status_code)
   {
   case 200:
-    return sendMsg(fd, RSP_HDR_200, strlen(RSP_HDR_200));
+    memcpy(msgHeader, RSP_HDR_200, strlen(RSP_HDR_200));
+    return strlen(RSP_HDR_200);
     break;
   case 404:
-    return sendMsg(fd, RSP_HDR_404, strlen(RSP_HDR_404));
+    memcpy(msgHeader, RSP_HDR_404, strlen(RSP_HDR_404));
+    return strlen(RSP_HDR_404);
     break;
   case 405:
-    return sendMsg(fd, RSP_HDR_405, strlen(RSP_HDR_405));
+    memcpy(msgHeader, RSP_HDR_405, strlen(RSP_HDR_405));
+    return strlen(RSP_HDR_405);
     break;
   case 500:
-    return sendMsg(fd, RSP_HDR_500, strlen(RSP_HDR_500));
+    memcpy(msgHeader, RSP_HDR_500, strlen(RSP_HDR_500));
+    return strlen(RSP_HDR_500);
     break;
   default:
     return -1;
@@ -189,22 +198,27 @@ int sendHeader(int fd, int status_code)
 
 int sendErrMsg(int fd, int status_code)
 {
-  if (!sendHeader(fd, status_code))
-  {
-    perror("Undefined error");
-    return -1;
-  }
-
+  int msgLen;
+  char errMsg[150];
   switch (status_code)
   {
   case 404:
-    return sendMsg(fd, ERR_BDY_404, strlen(ERR_BDY_404));
+    msgLen = strlen(RSP_HDR_404) + strlen(ERR_BDY_404);
+    memcpy(errMsg, RSP_HDR_404, strlen(RSP_HDR_404));
+    memcpy(errMsg + strlen(RSP_HDR_404), ERR_BDY_404, strlen(ERR_BDY_404));
+    return sendMsg(fd, errMsg, msgLen);
     break;
   case 405:
-    return sendMsg(fd, ERR_BDY_405, strlen(ERR_BDY_405));
+    msgLen = strlen(RSP_HDR_405) + strlen(ERR_BDY_405);
+    memcpy(errMsg, RSP_HDR_405, strlen(RSP_HDR_405));
+    memcpy(errMsg + strlen(RSP_HDR_405), ERR_BDY_405, strlen(ERR_BDY_405));
+    return sendMsg(fd, errMsg, msgLen);
     break;
   case 500:
-    return sendMsg(fd, ERR_BDY_500, strlen(ERR_BDY_500));
+    msgLen = strlen(RSP_HDR_500) + strlen(ERR_BDY_500);
+    memcpy(errMsg, RSP_HDR_500, strlen(RSP_HDR_500));
+    memcpy(errMsg + strlen(RSP_HDR_500), ERR_BDY_500, strlen(ERR_BDY_500));
+    return sendMsg(fd, errMsg, msgLen);
     break;
   default:
     perror("Undefined error");
@@ -216,6 +230,6 @@ int sendErrMsg(int fd, int status_code)
 
 void signalHandlerInterrpt(int signal)
 {
-  perror("\n exit");
+  fprintf(stdout,"\n exit\n");
   exit(0);
 }
