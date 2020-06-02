@@ -17,10 +17,10 @@
 #define ERR_BDY_404 "404 Page not found."
 #define ERR_BDY_405 "405 Method not allowed, Get only."
 #define ERR_BDY_500 "500 Internal Server Error."
-#define RSP_HDR_200 "HTTP/1.1 200 OK\r\ntext/html\r\n\r\n"
-#define RSP_HDR_404 "HTTP/1.1 404 Not Found\r\ntext/html\r\n\r\n"
-#define RSP_HDR_405 "HTTP/1.1 405 Method Not Allowed\r\ntext/html\r\n\r\n"
-#define RSP_HDR_500 "HTTP/1.1 500 Internal Server Error\r\ntext/html\r\n\r\n"
+#define RSP_HDR_200 "HTTP/1.1 200 OK\r\nContent-Type: text/html;\r\n\r\n"
+#define RSP_HDR_404 "HTTP/1.1 404 Not Found\r\nContent-Type: text/html;\r\n\r\n"
+#define RSP_HDR_405 "HTTP/1.1 405 Method Not Allowed\r\nContent-Type: text/html;\r\n\r\n"
+#define RSP_HDR_500 "HTTP/1.1 500 Internal Server Error\r\nContent-Type: text/html\r\n\r\n"
 
 void signalHandlerInterrpt(int signal);
 int isDir(const char *path);
@@ -75,7 +75,7 @@ int main()
 
   while (1)
   {
-    if ((newSockfd = accept(sockfd, (struct sockaddr *)&clientAddr, &clientAddrLen)) < 0)
+    if ((newSockfd = accept(sockfd, (struct sockaddr *)&clientAddr, (socklen_t *)&clientAddrLen)) < 0)
     {
       perror("Failed to accept socket connection ");
       break;
@@ -83,7 +83,7 @@ int main()
     else
     {
       serv(newSockfd);
-      close(newSockfd);
+      shutdown(newSockfd, SHUT_WR);
     }
   }
 
@@ -103,6 +103,9 @@ void serv(int sockfd)
   char httpVer[64];
   char msgHeader[50];
   char msgBody[1045000];
+
+  bzero(sendBuf, sizeof(sendBuf));
+  bzero(recvBuf, sizeof(recvBuf));
 
   if (recv(sockfd, recvBuf, 1024, 0) <= 0)
   {
@@ -143,10 +146,10 @@ void serv(int sockfd)
       else
       {
         msgHeaderLen = setMsgHeader(msgHeader, 200);
-        msgBodyLen = fread(msgBody, 1, 1024*1024*5, fileP);
-        memcpy(sendBuf,msgHeader,msgHeaderLen);
-        memcpy(sendBuf+msgHeaderLen, msgBody, msgBodyLen);
-        sendMsg(sockfd, sendBuf, msgHeaderLen+msgBodyLen);
+        msgBodyLen = fread(msgBody, 1, 1045000, fileP);
+        memcpy(sendBuf, msgHeader, msgHeaderLen);
+        memcpy(sendBuf + msgHeaderLen, msgBody, msgBodyLen);
+        sendMsg(sockfd, sendBuf, msgHeaderLen + msgBodyLen);
         fclose(fileP);
       }
     }
